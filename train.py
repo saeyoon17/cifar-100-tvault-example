@@ -135,7 +135,7 @@ if __name__ == "__main__":
 
     for learning_rate in [0.01, 0.001, 0.0001, 0.00001, 0.000001]:
         # for learning_rate in [0.01, 0.001]:
-        model = MobileNetV2
+        model = MobileNetV2()
         print(f"start training for lr {learning_rate}")
 
         model = model.to(args.local_rank)
