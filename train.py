@@ -142,7 +142,7 @@ if __name__ == "__main__":
         model = DDP(model, device_ids=[args.local_rank])
         criterion = nn.CrossEntropyLoss()
         optimizer = optim.SGD(model.parameters(), lr=learning_rate)
-        train(model, 5, train_loader, args.local_rank, criterion)
+        train(model, 20, train_loader, args.local_rank, criterion)
         if args.local_rank == 0:
             acc = test(model, test_loader, args.local_rank, criterion)
         tags = {"language": "pytorch", "size": "0.5x", "learning_rate": learning_rate}
