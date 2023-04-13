@@ -42,7 +42,7 @@ def train(model, train_epoch, train_loader, local_rank, criterion):
             optimizer.zero_grad()
             output = model(data)
             loss = criterion(output, target)
-            loss_acc += loss.item() / batch_size
+            loss_acc += loss.item()
             loss.backward()
             optimizer.step()
         if epoch % log_interval == 0:
