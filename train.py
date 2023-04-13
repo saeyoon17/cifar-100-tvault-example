@@ -8,7 +8,7 @@ import torch.distributed as dist
 import torch.optim as optim
 import torchvision
 import numpy as np
-import torch.nn.functional as F
+import torch.nn as nn
 import torchvision.transforms as transforms
 
 from torch.nn.parallel import DistributedDataParallel as DDP
@@ -25,7 +25,7 @@ torch.backends.cudnn.enabled = False
 np.random.seed(seed)
 
 # configurations
-batch_size = 1024
+batch_size = 4096
 learning_rate = 1e-3
 log_interval = 1
 mean = (0.5070751592371323, 0.48654887331495095, 0.4409178433670343)
@@ -140,7 +140,7 @@ if __name__ == "__main__":
 
         model = model.to(args.local_rank)
         model = DDP(model, device_ids=[args.local_rank])
-        criterion = torch.nn.NLLLoss()
+        criterion = nn.CrossEntropyLoss()
         optimizer = optim.SGD(model.parameters(), lr=learning_rate)
         train(model, 5, train_loader, args.local_rank, criterion)
         if args.local_rank == 0:
