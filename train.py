@@ -9,6 +9,7 @@ import torch.optim as optim
 import torchvision
 import numpy as np
 import torch.nn.functional as F
+import torchvision.transforms as transforms
 
 from torch.nn.parallel import DistributedDataParallel as DDP
 
@@ -24,9 +25,11 @@ torch.backends.cudnn.enabled = False
 np.random.seed(seed)
 
 # configurations
-batch_size = 4096
+batch_size = 1024
 learning_rate = 1e-3
 log_interval = 1
+mean = (0.5070751592371323, 0.48654887331495095, 0.4409178433670343)
+std = (0.2673342858792401, 0.2564384629170883, 0.27615047132568404)
 
 
 def train(model, train_epoch, train_loader, local_rank, criterion):
@@ -99,16 +102,19 @@ if __name__ == "__main__":
     init_for_distributed(args)
 
     # Model
-    train_dataset = torchvision.datasets.MNIST(
-        "/MNIST/",
-        train=True,
-        download=True,
-        transform=torchvision.transforms.Compose(
-            [
-                torchvision.transforms.ToTensor(),
-                torchvision.transforms.Normalize((0.1307,), (0.3081,)),
-            ]
-        ),
+    transform_train = transforms.Compose(
+        [
+            # transforms.ToPILImage(),
+            transforms.RandomCrop(32, padding=4),
+            transforms.RandomHorizontalFlip(),
+            transforms.RandomRotation(15),
+            transforms.ToTensor(),
+            transforms.Normalize(mean, std),
+        ]
+    )
+    # cifar100_training = CIFAR100Train(path, transform=transform_train)
+    train_dataset = torchvision.datasets.CIFAR100(
+        root="./data", train=True, download=True, transform=transform_train
     )
     train_sampler = torch.utils.data.distributed.DistributedSampler(train_dataset)
     train_loader = torch.utils.data.DataLoader(
@@ -117,16 +123,10 @@ if __name__ == "__main__":
         sampler=train_sampler,
     )
 
-    test_dataset = torchvision.datasets.MNIST(
-        "/MNIST/",
-        train=False,
-        download=True,
-        transform=torchvision.transforms.Compose(
-            [
-                torchvision.transforms.ToTensor(),
-                torchvision.transforms.Normalize((0.1307,), (0.3081,)),
-            ]
-        ),
+    transform_test = transforms.Compose([transforms.ToTensor(), transforms.Normalize(mean, std)])
+    # cifar100_test = CIFAR100Test(path, transform=transform_test)
+    test_dataset = torchvision.datasets.CIFAR100(
+        root="./data", train=False, download=True, transform=transform_test
     )
     test_loader = torch.utils.data.DataLoader(
         test_dataset,
