@@ -1,143 +1,97 @@
+"""mobilenetv2 in pytorch
+[1] Mark Sandler, Andrew Howard, Menglong Zhu, Andrey Zhmoginov, Liang-Chieh Chen
+    MobileNetV2: Inverted Residuals and Linear Bottlenecks
+    https://arxiv.org/abs/1801.04381
+"""
+
+import torch
 import torch.nn as nn
 import torch.nn.functional as F
 
 
-class Net(nn.Module):
-    def __init__(self):
-        super(Net, self).__init__()
-        self.conv1 = nn.Conv2d(1, 10, kernel_size=5)
-        self.conv2 = nn.Conv2d(10, 20, kernel_size=5)
-        self.conv2_drop = nn.Dropout2d()
-        self.fc1 = nn.Linear(320, 50)
-        self.fc2 = nn.Linear(50, 10)
+class LinearBottleNeck(nn.Module):
+    def __init__(self, in_channels, out_channels, stride, t=6, class_num=100):
+        super().__init__()
 
-    def forward(self, x):
-        x = F.relu(F.max_pool2d(self.conv1(x), 2))
-        x = F.relu(F.max_pool2d(self.conv2_drop(self.conv2(x)), 2))
-        x = x.view(-1, 320)
-        x = F.relu(self.fc1(x))
-        x = F.dropout(x, training=self.training)
-        x = self.fc2(x)
-        return F.log_softmax(x)
-
-
-# RESNET
-
-
-def conv3x3(in_planes, out_planes, stride=1):
-    """3x3 convolution with padding"""
-    return nn.Conv2d(in_planes, out_planes, kernel_size=3, stride=stride, padding=1, bias=False)
-
-
-class BasicBlock(nn.Module):
-    expansion = 1
-
-    def __init__(self, inplanes, planes, stride=1, downsample=None):
-        super(BasicBlock, self).__init__()
-        self.conv1 = conv3x3(inplanes, planes, stride)
-        self.bn1 = nn.BatchNorm2d(planes)
-        self.relu = nn.ReLU(inplace=True)
-        self.conv2 = conv3x3(planes, planes)
-        self.bn2 = nn.BatchNorm2d(planes)
-        self.downsample = downsample
-        self.stride = stride
-
-    def forward(self, x):
-        residual = x
-
-        out = self.conv1(x)
-        out = self.bn1(out)
-        out = self.relu(out)
-
-        out = self.conv2(out)
-        out = self.bn2(out)
-
-        if self.downsample is not None:
-            residual = self.downsample(x)
-
-        out += residual
-        out = self.relu(out)
-
-        return out
-
-
-class ResNet(nn.Module):
-    def __init__(self, block, layers, num_classes, grayscale):
-        self.inplanes = int(64 * 0.5)
-        if grayscale:
-            in_dim = 1
-        else:
-            in_dim = 3
-        super(ResNet, self).__init__()
-        # upscale
-        self.conv1 = nn.Conv2d(
-            in_dim, int(64 * 0.5), kernel_size=7, stride=2, padding=3, bias=False
+        self.residual = nn.Sequential(
+            nn.Conv2d(in_channels, in_channels * t, 1),
+            nn.BatchNorm2d(in_channels * t),
+            nn.ReLU6(inplace=True),
+            nn.Conv2d(
+                in_channels * t,
+                in_channels * t,
+                3,
+                stride=stride,
+                padding=1,
+                groups=in_channels * t,
+            ),
+            nn.BatchNorm2d(in_channels * t),
+            nn.ReLU6(inplace=True),
+            nn.Conv2d(in_channels * t, out_channels, 1),
+            nn.BatchNorm2d(out_channels),
         )
-        self.bn1 = nn.BatchNorm2d(int(64 * 0.5))
-        self.relu = nn.ReLU(inplace=True)
-        self.maxpool = nn.MaxPool2d(kernel_size=3, stride=2, padding=1)
-        self.layer1 = self._make_layer(block, int(64 * 0.5), layers[0])
-        self.layer2 = self._make_layer(block, int(128 * 0.5), layers[1], stride=2)
-        self.layer3 = self._make_layer(block, int(256 * 0.5), layers[2], stride=2)
-        self.layer4 = self._make_layer(block, int(512 * 0.5), layers[3], stride=2)
-        self.avgpool = nn.AvgPool2d(7, stride=1)
-        self.fc = nn.Linear(int(512 * 0.5) * block.expansion, num_classes)
 
-        for m in self.modules():
-            if isinstance(m, nn.Conv2d):
-                n = m.kernel_size[0] * m.kernel_size[1] * m.out_channels
-                m.weight.data.normal_(0, (2.0 / n) ** 0.5)
-            elif isinstance(m, nn.BatchNorm2d):
-                m.weight.data.fill_(1)
-                m.bias.data.zero_()
+        self.stride = stride
+        self.in_channels = in_channels
+        self.out_channels = out_channels
 
-    def _make_layer(self, block, planes, blocks, stride=1):
-        downsample = None
-        if stride != 1 or self.inplanes != planes * block.expansion:
-            downsample = nn.Sequential(
-                nn.Conv2d(
-                    self.inplanes,
-                    planes * block.expansion,
-                    kernel_size=1,
-                    stride=stride,
-                    bias=False,
-                ),
-                nn.BatchNorm2d(planes * block.expansion),
-            )
+    def forward(self, x):
+        residual = self.residual(x)
 
+        if self.stride == 1 and self.in_channels == self.out_channels:
+            residual += x
+
+        return residual
+
+
+class MobileNetV2(nn.Module):
+    def __init__(self, class_num=100):
+        super().__init__()
+
+        self.pre = nn.Sequential(
+            nn.Conv2d(3, 32, 1, padding=1), nn.BatchNorm2d(32), nn.ReLU6(inplace=True)
+        )
+
+        self.stage1 = LinearBottleNeck(32, 16, 1, 1)
+        self.stage2 = self._make_stage(2, 16, 24, 2, 6)
+        self.stage3 = self._make_stage(3, 24, 32, 2, 6)
+        self.stage4 = self._make_stage(4, 32, 64, 2, 6)
+        self.stage5 = self._make_stage(3, 64, 96, 1, 6)
+        self.stage6 = self._make_stage(3, 96, 160, 1, 6)
+        self.stage7 = LinearBottleNeck(160, 320, 1, 6)
+
+        self.conv1 = nn.Sequential(
+            nn.Conv2d(320, 1280, 1), nn.BatchNorm2d(1280), nn.ReLU6(inplace=True)
+        )
+
+        self.conv2 = nn.Conv2d(1280, class_num, 1)
+
+    def forward(self, x):
+        x = self.pre(x)
+        x = self.stage1(x)
+        x = self.stage2(x)
+        x = self.stage3(x)
+        x = self.stage4(x)
+        x = self.stage5(x)
+        x = self.stage6(x)
+        x = self.stage7(x)
+        x = self.conv1(x)
+        x = F.adaptive_avg_pool2d(x, 1)
+        x = self.conv2(x)
+        x = x.view(x.size(0), -1)
+
+        return x
+
+    def _make_stage(self, repeat, in_channels, out_channels, stride, t):
         layers = []
-        layers.append(block(self.inplanes, planes, stride, downsample))
-        self.inplanes = planes * block.expansion
-        for i in range(1, blocks):
-            layers.append(block(self.inplanes, planes))
+        layers.append(LinearBottleNeck(in_channels, out_channels, stride, t))
+
+        while repeat - 1:
+            layers.append(LinearBottleNeck(out_channels, out_channels, 1, t))
+            repeat -= 1
 
         return nn.Sequential(*layers)
 
-    def forward(self, x):
-        x = self.conv1(x)
-        x = self.bn1(x)
-        x = self.relu(x)
-        x = self.maxpool(x)
 
-        x = self.layer1(x)
-        x = self.layer2(x)
-        x = self.layer3(x)
-        x = self.layer4(x)
-        # because MNIST is already 1x1 here:
-        # disable avg pooling
-        # x = self.avgpool(x)
-
-        x = x.view(x.size(0), -1)
-        logits = self.fc(x)
-        probas = F.log_softmax(logits, dim=1)
-        return probas
-
-
-NUM_FEATURES = 28 * 28
-NUM_CLASSES = 10
-
-
-def resnet18(num_classes):
-    """Constructs a ResNet-18 model."""
-    model = ResNet(block=BasicBlock, layers=[2, 2, 2, 2], num_classes=NUM_CLASSES, grayscale=True)
-    return model
+def mobilenetv2():
+    return MobileNetV2()

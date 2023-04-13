@@ -6,14 +6,13 @@ import torch
 import tvault
 import torch.distributed as dist
 import torch.optim as optim
-import torchvision.transforms as transforms
 import torchvision
 import numpy as np
 import torch.nn.functional as F
 
 from torch.nn.parallel import DistributedDataParallel as DDP
 
-from module import resnet18
+from module import MobileNetV2
 import argparse
 
 # seeding
@@ -99,23 +98,17 @@ if __name__ == "__main__":
     # DDP
     init_for_distributed(args)
 
-    mean = (0.5070751592371323, 0.48654887331495095, 0.4409178433670343)
-    std = (0.2673342858792401, 0.2564384629170883, 0.27615047132568404)
-
     # Model
-    transform_train = transforms.Compose(
-        [
-            # transforms.ToPILImage(),
-            transforms.RandomCrop(32, padding=4),
-            transforms.RandomHorizontalFlip(),
-            transforms.RandomRotation(15),
-            transforms.ToTensor(),
-            transforms.Normalize(mean, std),
-        ]
-    )
-
-    train_dataset = torchvision.datasets.CIFAR100(
-        root="./data", train=True, download=True, transform=transform_train
+    train_dataset = torchvision.datasets.MNIST(
+        "/MNIST/",
+        train=True,
+        download=True,
+        transform=torchvision.transforms.Compose(
+            [
+                torchvision.transforms.ToTensor(),
+                torchvision.transforms.Normalize((0.1307,), (0.3081,)),
+            ]
+        ),
     )
     train_sampler = torch.utils.data.distributed.DistributedSampler(train_dataset)
     train_loader = torch.utils.data.DataLoader(
@@ -124,10 +117,16 @@ if __name__ == "__main__":
         sampler=train_sampler,
     )
 
-    transform_test = transforms.Compose([transforms.ToTensor(), transforms.Normalize(mean, std)])
-    # cifar100_test = CIFAR100Test(path, transform=transform_test)
-    test_dataset = torchvision.datasets.CIFAR100(
-        root="./data", train=False, download=True, transform=transform_test
+    test_dataset = torchvision.datasets.MNIST(
+        "/MNIST/",
+        train=False,
+        download=True,
+        transform=torchvision.transforms.Compose(
+            [
+                torchvision.transforms.ToTensor(),
+                torchvision.transforms.Normalize((0.1307,), (0.3081,)),
+            ]
+        ),
     )
     test_loader = torch.utils.data.DataLoader(
         test_dataset,
@@ -136,7 +135,7 @@ if __name__ == "__main__":
 
     for learning_rate in [0.01, 0.001, 0.0001, 0.00001, 0.000001]:
         # for learning_rate in [0.01, 0.001]:
-        model = resnet18(100)
+        model = MobileNetV2
         print(f"start training for lr {learning_rate}")
 
         model = model.to(args.local_rank)
@@ -146,10 +145,5 @@ if __name__ == "__main__":
         train(model, 5, train_loader, args.local_rank, criterion)
         if args.local_rank == 0:
             acc = test(model, test_loader, args.local_rank, criterion)
-        tags = {
-            "language": "pytorch",
-            "size": "0.5x",
-            "learning_rate": learning_rate,
-            "dataset": "cifar-100",
-        }
+        tags = {"language": "pytorch", "size": "0.5x", "learning_rate": learning_rate}
         tvault.log_all(model, tags=tags, result=acc.item(), optimizer=optimizer)
