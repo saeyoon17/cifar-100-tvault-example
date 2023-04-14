@@ -2,6 +2,8 @@
 [1] Mark Sandler, Andrew Howard, Menglong Zhu, Andrey Zhmoginov, Liang-Chieh Chen
     MobileNetV2: Inverted Residuals and Linear Bottlenecks
     https://arxiv.org/abs/1801.04381
+
+code source: https://github.com/weiaicunzai/pytorch-cifar100/blob/master/models/mobilenetv2.py
 """
 
 import torch
