@@ -65,16 +65,18 @@ class MobileNetV2(nn.Module):
         )
 
         self.conv2 = nn.Conv2d(1280, class_num, 1)
+        self.ln1 = nn.LayerNorm(64)
+        self.ln2 = nn.LayerNorm(320)
 
     def forward(self, x):
         x = self.pre(x)
         x = self.stage1(x)
         x = self.stage2(x)
         x = self.stage3(x)
-        x = self.stage4(x)
+        x = self.ln1(self.stage4(x))
         x = self.stage5(x)
         x = self.stage6(x)
-        x = self.stage7(x)
+        x = self.ln2(self.stage7(x))
         x = self.conv1(x)
         x = F.adaptive_avg_pool2d(x, 1)
         x = self.conv2(x)
