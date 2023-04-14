@@ -133,7 +133,7 @@ if __name__ == "__main__":
         batch_size=batch_size,
     )
 
-    for learning_rate in [0.01, 0.001, 0.0001, 0.00001, 0.000001]:
+    for learning_rate in [0.1, 0.01, 0.001]:
         # for learning_rate in [0.01, 0.001]:
         model = MobileNetV2()
         print(f"start training for lr {learning_rate}")
@@ -142,8 +142,8 @@ if __name__ == "__main__":
         model = DDP(model, device_ids=[args.local_rank])
         criterion = nn.CrossEntropyLoss()
         optimizer = optim.SGD(model.parameters(), lr=learning_rate)
-        train(model, 30, train_loader, args.local_rank, criterion)
+        train(model, 40, train_loader, args.local_rank, criterion)
         if args.local_rank == 0:
             acc = test(model, test_loader, args.local_rank, criterion)
-        tags = {"language": "pytorch", "size": "0.5x", "learning_rate": learning_rate, "epoch": 30}
+        tags = {"language": "pytorch", "size": "0.5x", "learning_rate": learning_rate, "epoch": 40}
         tvault.log_all(model, tags=tags, result=acc.item(), optimizer=optimizer)
