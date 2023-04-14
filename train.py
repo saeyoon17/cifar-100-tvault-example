@@ -144,14 +144,14 @@ if __name__ == "__main__":
             model = DDP(model, device_ids=[args.local_rank])
             criterion = nn.CrossEntropyLoss()
             optimizer = optim.SGD(model.parameters(), lr=learning_rate)
-            train(model, 80, train_loader, args.local_rank, criterion)
+            train(model, 150, train_loader, args.local_rank, criterion)
             if args.local_rank == 0:
                 acc = test(model, test_loader, args.local_rank, criterion)
             tags = {
                 "language": "pytorch",
                 "size": "3x",
                 "learning_rate": learning_rate,
-                "epoch": 80,
+                "epoch": 150,
                 "batch_size": batch_size,
             }
             tvault.log_all(model, tags=tags, result=acc.item(), optimizer=optimizer)

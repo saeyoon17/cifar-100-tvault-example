@@ -62,7 +62,7 @@ class MobileNetV2(nn.Module):
         self.stage5 = self._make_stage(3, 64 * scale, 96 * scale, 1, 6)
         self.stage6 = self._make_stage(3, 96 * scale, 160 * scale, 1, 6)
         self.stage7 = LinearBottleNeck(160 * scale, 320 * scale, 1, 6)
-
+        self.dropout = nn.Dropout(0.2)
         self.conv1 = nn.Sequential(
             nn.Conv2d(320 * scale, 1280 * scale, 1),
             nn.BatchNorm2d(1280 * scale),
@@ -75,10 +75,10 @@ class MobileNetV2(nn.Module):
         x = self.pre(x)
         x = self.stage1(x)
         x = self.stage2(x)
-        x = self.stage3(x)
+        x = self.dropout(self.stage3(x))
         x = self.stage4(x)
         x = self.stage5(x)
-        x = self.stage6(x)
+        x = self.dropout(self.stage6(x))
         x = self.stage7(x)
         x = self.conv1(x)
         x = F.adaptive_avg_pool2d(x, 1)
