@@ -49,7 +49,7 @@ class MobileNetV2(nn.Module):
         super().__init__()
 
         self.pre = nn.Sequential(
-            nn.Conv2d(3, 32, 1, padding=1), nn.BatchNorm2d(32), nn.ReLU6(inplace=True)
+            nn.Conv2d(3, 32 * 2, 1, padding=1), nn.BatchNorm2d(32 * 2), nn.ReLU6(inplace=True)
         )
 
         self.stage1 = LinearBottleNeck(32 * 2, 16 * 2, 1, 1)
