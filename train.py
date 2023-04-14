@@ -34,8 +34,8 @@ std = (0.2673342858792401, 0.2564384629170883, 0.27615047132568404)
 
 def train(model, train_epoch, train_loader, local_rank, criterion):
     model.train()
-    loss_acc = 0
     for epoch in range(train_epoch):
+        loss_acc = 0
         for batch_idx, (data, target) in enumerate(train_loader):
             data = data.to(local_rank)
             target = target.to(local_rank)
