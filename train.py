@@ -125,32 +125,33 @@ if __name__ == "__main__":
     )
 
     for batch_size in [32, 64, 128]:
-        train_loader = torch.utils.data.DataLoader(
-            train_dataset,
-            batch_size=batch_size,
-            sampler=train_sampler,
-        )
-        test_loader = torch.utils.data.DataLoader(
-            test_dataset,
-            batch_size=batch_size,
-        )
+        for learning_rate in [0.1, 0.01]:
+            train_loader = torch.utils.data.DataLoader(
+                train_dataset,
+                batch_size=batch_size,
+                sampler=train_sampler,
+            )
+            test_loader = torch.utils.data.DataLoader(
+                test_dataset,
+                batch_size=batch_size,
+            )
 
-        # for learning_rate in [0.01, 0.001]:
-        model = MobileNetV2()
-        print(f"start training for lr {learning_rate}")
+            # for learning_rate in [0.01, 0.001]:
+            model = MobileNetV2()
+            print(f"start training for lr {learning_rate}")
 
-        model = model.to(args.local_rank)
-        model = DDP(model, device_ids=[args.local_rank])
-        criterion = nn.CrossEntropyLoss()
-        optimizer = optim.SGD(model.parameters(), lr=learning_rate)
-        train(model, 40, train_loader, args.local_rank, criterion)
-        if args.local_rank == 0:
-            acc = test(model, test_loader, args.local_rank, criterion)
-        tags = {
-            "language": "pytorch",
-            "size": "0.5x",
-            "learning_rate": learning_rate,
-            "epoch": 40,
-            "batch_size": batch_size,
-        }
-        tvault.log_all(model, tags=tags, result=acc.item(), optimizer=optimizer)
+            model = model.to(args.local_rank)
+            model = DDP(model, device_ids=[args.local_rank])
+            criterion = nn.CrossEntropyLoss()
+            optimizer = optim.SGD(model.parameters(), lr=learning_rate)
+            train(model, 80, train_loader, args.local_rank, criterion)
+            if args.local_rank == 0:
+                acc = test(model, test_loader, args.local_rank, criterion)
+            tags = {
+                "language": "pytorch",
+                "size": "3x",
+                "learning_rate": learning_rate,
+                "epoch": 80,
+                "batch_size": batch_size,
+            }
+            tvault.log_all(model, tags=tags, result=acc.item(), optimizer=optimizer)

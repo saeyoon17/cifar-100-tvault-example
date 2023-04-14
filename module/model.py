@@ -49,24 +49,27 @@ class LinearBottleNeck(nn.Module):
 class MobileNetV2(nn.Module):
     def __init__(self, class_num=100):
         super().__init__()
-
+        scale = 3
         self.pre = nn.Sequential(
-            nn.Conv2d(3, 32 * 2, 1, padding=1), nn.BatchNorm2d(32 * 2), nn.ReLU6(inplace=True)
+            nn.Conv2d(3, 32 * scale, 1, padding=1),
+            nn.BatchNorm2d(32 * scale),
+            nn.ReLU6(inplace=True),
         )
-
-        self.stage1 = LinearBottleNeck(32 * 2, 16 * 2, 1, 1)
-        self.stage2 = self._make_stage(2, 16 * 2, 24 * 2, 2, 6)
-        self.stage3 = self._make_stage(3, 24 * 2, 32 * 2, 2, 6)
-        self.stage4 = self._make_stage(4, 32 * 2, 64 * 2, 2, 6)
-        self.stage5 = self._make_stage(3, 64 * 2, 96 * 2, 1, 6)
-        self.stage6 = self._make_stage(3, 96 * 2, 160 * 2, 1, 6)
-        self.stage7 = LinearBottleNeck(160 * 2, 320 * 2, 1, 6)
+        self.stage1 = LinearBottleNeck(32 * scale, 16 * scale, 1, 1)
+        self.stage2 = self._make_stage(2, 16 * scale, 24 * scale, 2, 6)
+        self.stage3 = self._make_stage(3, 24 * scale, 32 * scale, 2, 6)
+        self.stage4 = self._make_stage(4, 32 * scale, 64 * scale, 2, 6)
+        self.stage5 = self._make_stage(3, 64 * scale, 96 * scale, 1, 6)
+        self.stage6 = self._make_stage(3, 96 * scale, 160 * scale, 1, 6)
+        self.stage7 = LinearBottleNeck(160 * scale, 320 * scale, 1, 6)
 
         self.conv1 = nn.Sequential(
-            nn.Conv2d(320 * 2, 1280 * 2, 1), nn.BatchNorm2d(1280 * 2), nn.ReLU6(inplace=True)
+            nn.Conv2d(320 * scale, 1280 * scale, 1),
+            nn.BatchNorm2d(1280 * scale),
+            nn.ReLU6(inplace=True),
         )
 
-        self.conv2 = nn.Conv2d(1280 * 2, class_num, 1)
+        self.conv2 = nn.Conv2d(1280 * scale, class_num, 1)
 
     def forward(self, x):
         x = self.pre(x)
