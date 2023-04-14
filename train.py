@@ -25,8 +25,8 @@ torch.backends.cudnn.enabled = False
 np.random.seed(seed)
 
 # configurations
-batch_size = 256
-learning_rate = 1e-3
+batch_size = 32
+learning_rate = 0.1
 log_interval = 1
 mean = (0.5070751592371323, 0.48654887331495095, 0.4409178433670343)
 std = (0.2673342858792401, 0.2564384629170883, 0.27615047132568404)
@@ -117,23 +117,24 @@ if __name__ == "__main__":
         root="./data", train=True, download=True, transform=transform_train
     )
     train_sampler = torch.utils.data.distributed.DistributedSampler(train_dataset)
-    train_loader = torch.utils.data.DataLoader(
-        train_dataset,
-        batch_size=batch_size,
-        sampler=train_sampler,
-    )
 
     transform_test = transforms.Compose([transforms.ToTensor(), transforms.Normalize(mean, std)])
     # cifar100_test = CIFAR100Test(path, transform=transform_test)
     test_dataset = torchvision.datasets.CIFAR100(
         root="./data", train=False, download=True, transform=transform_test
     )
-    test_loader = torch.utils.data.DataLoader(
-        test_dataset,
-        batch_size=batch_size,
-    )
 
-    for learning_rate in [0.1, 0.01, 0.001]:
+    for batch_size in [32, 64, 128]:
+        train_loader = torch.utils.data.DataLoader(
+            train_dataset,
+            batch_size=batch_size,
+            sampler=train_sampler,
+        )
+        test_loader = torch.utils.data.DataLoader(
+            test_dataset,
+            batch_size=batch_size,
+        )
+
         # for learning_rate in [0.01, 0.001]:
         model = MobileNetV2()
         print(f"start training for lr {learning_rate}")
@@ -150,6 +151,6 @@ if __name__ == "__main__":
             "size": "0.5x",
             "learning_rate": learning_rate,
             "epoch": 40,
-            "batch_size": 256,
+            "batch_size": batch_size,
         }
         tvault.log_all(model, tags=tags, result=acc.item(), optimizer=optimizer)
