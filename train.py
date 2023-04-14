@@ -25,7 +25,7 @@ torch.backends.cudnn.enabled = False
 np.random.seed(seed)
 
 # configurations
-batch_size = 512
+batch_size = 256
 learning_rate = 1e-3
 log_interval = 1
 mean = (0.5070751592371323, 0.48654887331495095, 0.4409178433670343)
@@ -145,5 +145,11 @@ if __name__ == "__main__":
         train(model, 40, train_loader, args.local_rank, criterion)
         if args.local_rank == 0:
             acc = test(model, test_loader, args.local_rank, criterion)
-        tags = {"language": "pytorch", "size": "0.5x", "learning_rate": learning_rate, "epoch": 40}
+        tags = {
+            "language": "pytorch",
+            "size": "0.5x",
+            "learning_rate": learning_rate,
+            "epoch": 40,
+            "batch_size": 256,
+        }
         tvault.log_all(model, tags=tags, result=acc.item(), optimizer=optimizer)
